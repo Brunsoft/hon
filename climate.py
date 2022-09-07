@@ -169,8 +169,11 @@ class HonClimate(CoordinatorEntity, ClimateEntity):
         self._available     = True
         self._watcher       = None
         
-        self._default_command = {"specialMode":"0","heatAccumulationStatus":"0","echoStatus":"0","healthMode":"0","tempSel":"21.00","humidificationStatus":"0","tempUnit":"0","humiditySel":"30","pmvStatus":"0","screenDisplayStatus":"1","windDirectionVertical":"5","lightStatus":"0","energySavingStatus":"0","lockStatus":"0","machMode":"1","windDirectionHorizontal":"0","freshAirStatus":"0","pm2p5CleaningStatus":"0","windSpeed":"5","ch2oCleaningStatus":"0","electricHeatingStatus":"0","onOffStatus":1,"energySavePeriod":"15","intelligenceStatus":"0","halfDegreeSettingStatus":"0","rapidMode":"0","operationName":"grSetDAC","silentSleepStatus":"0","voiceSignStatus":"0","voiceStatus":"0","muteStatus":"0","10degreeHeatingStatus":"0","windSensingStatus":"0","selfCleaning56Status":"0","humanSensingStatus":"0","selfCleaningStatus":"0"}
-
+        if self._series == "cassette":
+            self._default_command = {"4SidesWindDirection4": "6","4SidesWindDirection3": "6","echoStatus": "0","tempSel": "21","4SidesWindDirection2": "6","rapidMode": "0","halfDegreeSettingStatus": "0","4SidesWindDirection1": "6","tempUnit": "0","lockStatus": "0","machMode": "1","muteStatus": "0","muteStatusOutdoor": "0","10degreeHeatingStatus": "0","windSpeed": "5","onOffStatus": "1"}
+        else:
+            self._default_command = {"specialMode":"0","heatAccumulationStatus":"0","echoStatus":"0","healthMode":"0","tempSel":"21.00","humidificationStatus":"0","tempUnit":"0","humiditySel":"30","pmvStatus":"0","screenDisplayStatus":"1","windDirectionVertical":"5","lightStatus":"0","energySavingStatus":"0","lockStatus":"0","machMode":"1","windDirectionHorizontal":"0","freshAirStatus":"0","pm2p5CleaningStatus":"0","windSpeed":"5","ch2oCleaningStatus":"0","electricHeatingStatus":"0","onOffStatus":1,"energySavePeriod":"15","intelligenceStatus":"0","halfDegreeSettingStatus":"0","rapidMode":"0","operationName":"grSetDAC","silentSleepStatus":"0","voiceSignStatus":"0","voiceStatus":"0","muteStatus":"0","10degreeHeatingStatus":"0","windSensingStatus":"0","selfCleaning56Status":"0","humanSensingStatus":"0","selfCleaningStatus":"0"}
+        
         #Not working for Farenheit
         self._attr_temperature_unit     = TEMP_CELSIUS
         self._attr_min_temp             = 16
@@ -257,9 +260,14 @@ class HonClimate(CoordinatorEntity, ClimateEntity):
         return int(json[val]['parNewVal'])
 
     def get_command(self, parameters = {}):
-        command = self._default_command
-        command['operationName']    = 'grSetDAC'
-        command['onOffStatus']      = '1'
+        command = {}
+        
+        # Aggiungo i comandi di default solo se non è una cassetta
+        if self._series != "cassette":
+            command = self._default_command
+            command['operationName'] = 'grSetDAC'
+        
+        command['onOffStatus'] = '1'
         
         for key, val in parameters.items():
             if isinstance(val, IntEnum):
@@ -373,28 +381,34 @@ class HonClimate(CoordinatorEntity, ClimateEntity):
         await self.async_send_command(parameters)
 
     async def async_set_swing_mode(self, swing_mode: str):
-        
-        if swing_mode == SWING_BOTH:
-            parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.AUTO, 'windDirectionVertical': ClimateSwingVertical.AUTO}
+        if self._series != "cassette":
+            if swing_mode == SWING_BOTH:
+                parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.AUTO, 'windDirectionVertical': ClimateSwingVertical.AUTO}
 
-        elif swing_mode == SWING_HORIZONTAL and int(self._default_command['windDirectionVertical']) == ClimateSwingVertical.AUTO:
-            parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.AUTO, 'windDirectionVertical': ClimateSwingVertical.MEDIUM}
+            elif swing_mode == SWING_HORIZONTAL and int(self._default_command['windDirectionVertical']) == ClimateSwingVertical.AUTO:
+                parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.AUTO, 'windDirectionVertical': ClimateSwingVertical.MEDIUM}
 
-        elif swing_mode == SWING_HORIZONTAL:
-            parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.AUTO}
+            elif swing_mode == SWING_HORIZONTAL:
+                parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.AUTO}
 
-        elif swing_mode == SWING_VERTICAL and int(self._default_command['windDirectionHorizontal']) == ClimateSwingHorizontal.AUTO:
-            parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.MEDIUM, 'windDirectionVertical': ClimateSwingVertical.AUTO}
+            elif swing_mode == SWING_VERTICAL and int(self._default_command['windDirectionHorizontal']) == ClimateSwingHorizontal.AUTO:
+                parameters = {'windDirectionHorizontal': ClimateSwingHorizontal.MEDIUM, 'windDirectionVertical': ClimateSwingVertical.AUTO}
 
-        elif swing_mode == SWING_VERTICAL:
-            parameters = {'windDirectionVertical': ClimateSwingVertical.AUTO}
+            elif swing_mode == SWING_VERTICAL:
+                parameters = {'windDirectionVertical': ClimateSwingVertical.AUTO}
 
-        else: #off
-            parameters = {}
-            if int(self._default_command['windDirectionHorizontal']) == ClimateSwingHorizontal.AUTO:
-                parameters['windDirectionHorizontal'] =  ClimateSwingHorizontal.MEDIUM
-            if int(self._default_command['windDirectionVertical']) == ClimateSwingVertical.AUTO:
-                parameters['windDirectionVertical'] =  ClimateSwingVertical.MEDIUM
+            else: #off
+                parameters = {}
+                if int(self._default_command['windDirectionHorizontal']) == ClimateSwingHorizontal.AUTO:
+                    parameters['windDirectionHorizontal'] =  ClimateSwingHorizontal.MEDIUM
+                if int(self._default_command['windDirectionVertical']) == ClimateSwingVertical.AUTO:
+                    parameters['windDirectionVertical'] =  ClimateSwingVertical.MEDIUM
+        else:
+            if swing_mode == SWING_BOTH or swing_mode == SWING_HORIZONTAL or swing_mode == SWING_VERTICAL:
+                parameters = {'4SidesWindDirection1': ClimateSwingHorizontal.AUTO, '4SidesWindDirection2': ClimateSwingHorizontal.AUTO, '4SidesWindDirection3': ClimateSwingHorizontal.AUTO, '4SidesWindDirection4': ClimateSwingHorizontal.AUTO}
+
+            else: #off
+                parameters = {'4SidesWindDirection1': ClimateSwingHorizontal.MEDIUM, '4SidesWindDirection2': ClimateSwingHorizontal.MEDIUM, '4SidesWindDirection3': ClimateSwingHorizontal.MEDIUM, '4SidesWindDirection4': ClimateSwingHorizontal.MEDIUM}
 
         self._attr_swing_mode = swing_mode
         await self.async_send_command(parameters)
